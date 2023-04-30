@@ -1,97 +1,177 @@
 % !TEX root = ../main.tex
 
-\chapter{简介}
+\chapter{绪论}
 
-这是 SJTUThesis 的示例文档，基本上覆盖了模板中所有格式的设置。建议大家在使用模
-板之前，除了阅读《SJTUThesis 使用文档》，这个示例文档也最好能看一看。
+本文中我们将介绍联邦学习（Federated Learning）中通信效率（communication efficiency）和隐私保护（privacy preservation）两个方面的问题，并通过基于模型训练轨迹的降维压缩方法尝试解决这两个方面的问题。这两个问题均是当前联邦学习研究领域广受关注的诸多问题之一。本文的组织结构如下，首先我们将在本章中介绍联邦学习、模型压缩、差分隐私的相关背景知识。在第二章中，我们将讲述联邦学习框架下实现高效通信和隐私保护的相关工作，对比联邦学习下各类模型压缩方法和隐私保护策略等。然后，我们将在第三章详细介绍本文所应用的基于模型训练轨迹的降维压缩方法，包括这一方法与以往模型压缩方法的主要区别和在中心化场景下的实验。第四章中，我们将介绍将这一降维压缩方法在联邦学习中具体的应用以及详细的实验结果。第五章我们将介绍如何在应用了降维方法的联邦学习框架中实现差分隐私方法，并给出详细的实验。最后，我们将给出整个论文的结论，总结我们方法的使用，并谈及一些未来的方向。
 
-\section{二级标题}
+\section{联邦学习介绍}
 
-\subsection{三级标题}
+\subsection{联邦学习的背景}
 
-\subsubsection{四级标题}
-
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
-incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis
-nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
-fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
-culpa qui officia deserunt mollit anim id est laborum.
-
-\section{脚注}
-
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
-incididunt ut labore et dolore magna aliqua. \footnote{Ut enim ad minim veniam,
-quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
-consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum
-dolore eu fugiat nulla pariatur.}
-
-\section{字体}
+基于大数据的人工智能（artificial intelligence，AI）正在被应用到我们生活的方方面面。而智能手机、可穿戴设备、自动驾驶汽车等物联网（Internet of Things，IoT）设备正在每天产出大量的数据\cite{li2020federated}。在将人工智能整合到这些物联网应用的过程中，由于研究者们对数据传输效率、数据隐私安全的考虑，边缘计算（edge computing）和分布式机器学习（distributed machine learning）越来越受到关注。联邦学习\cite{mcmahan2017communication}（federated learning，FL）则凭借着其将数据保存在本地进行训练、由云端进行模型整合的能力，成为了分布式机器学习领域的前沿话题。
 
 
-上海交通大学是我国历史最悠久的高等学府之一，是教育部直属、教育部与上海市共建的全
-国重点大学，是国家“七五”、“八五”重点建设和“211 工程”、“985 工程”的首批建
-设高校。经过 115 年的不懈努力，上海交通大学已经成为一所“综合性、研究型、国际化”
-的国内一流、国际知名大学，并正在向世界一流大学稳步迈进。 
+\subsection{联邦学习的框架}
 
-{\songti 十九世纪末，甲午战败，民族危难。中国近代著名实业家、教育家盛宣怀和一批
-  有识之士秉持“自强首在储才，储才必先兴学”的信念，于 1896 年在上海创办了交通大
-  学的前身——南洋公学。建校伊始，学校即坚持“求实学，务实业”的宗旨，以培养“第
-  一等人才”为教育目标，精勤进取，笃行不倦，在二十世纪二三十年代已成为国内著名的
-  高等学府，被誉为“东方MIT”。抗战时期，广大师生历尽艰难，移转租界，内迁重庆，
-  坚持办学，不少学生投笔从戎，浴血沙场。解放前夕，广大师生积极投身民主革命，学校
-  被誉为“民主堡垒”。
-  
-  新中国成立初期，为配合国家经济建设的需要，学校调整出相当一部分优势专业、师资设
-  备，支持国内兄弟院校的发展。五十年代中期，学校又响应国家建设大西北的号召，根据
-  国务院决定，部分迁往西安，分为交通大学上海部分和西安部分。1959 年 3月两部分同
-  时被列为全国重点大学，7 月经国务院批准分别独立建制，交通大学上海部分启用“上海
-  交通大学”校名。历经西迁、两地办学、独立办学等变迁，为构建新中国的高等教育体
-  系，促进社会主义建设做出了重要贡献。六七十年代，学校先后归属国防科工委和六机部
-  领导，积极投身国防人才培养和国防科研，为“两弹一星”和国防现代化做出了巨大贡
-  献。}
+常规的联邦学习框架包含一个服务端（云端）和$N$个客户端（本地端）如（TODO）所示。每个客户端$C_i$上均保存有一定大小的、与其他客户端不同的本地数据集$D_i$。服务端的目标为训练一个训练数据覆盖所有客户端的数据集的模型。每个参与联邦学习训练的客户端$C_i$，需要在本地数据集$D_i$计算得到最小化损失函数（loss function）的神经网络模型参数$w_i$。为了实现在涵盖所有客户端数据上最优，服务端需要对$N$个客户端上传的模型进行聚合（aggregation），聚合的公式如下：
+\begin{equation}
+ \mathbf{w} = \sum_{i = 1} ^ {N} p_i\mathbf{w}_i,
+\end{equation}
 
-{\heiti 改革开放以来，学校以“敢为天下先”的精神，大胆推进改革：率先组成教授代
-  表团访问美国，率先实行校内管理体制改革，率先接受海外友人巨资捐赠等，有力地推动
-  了学校的教学科研改革。1984 年，邓小平同志亲切接见了学校领导和师生代表，对学校
-  的各项改革给予了充分肯定。在国家和上海市的大力支持下，学校以“上水平、创一流”
-  为目标，以学科建设为龙头，先后恢复和兴建了理科、管理学科、生命学科、法学和人文
-  学科等。1999 年，上海农学院并入；2005 年，与上海第二医科大学强强合并。至此，学
-  校完成了综合性大学的学科布局。近年来，通过国家“985 工程”和“211 工程”的建
-  设，学校高层次人才日渐汇聚，科研实力快速提升，实现了向研究型大学的转变。与此同
-  时，学校通过与美国密西根大学等世界一流大学的合作办学，实施国际化战略取得重要突
-  破。1985 年开始闵行校区建设，历经 20 多年，已基本建设成设施完善，环境优美的现
-  代化大学校园，并已完成了办学重心向闵行校区的转移。学校现有徐汇、闵行、法华、七
-  宝和重庆南路（卢湾）5 个校区，总占地面积 4840 亩。通过一系列的改革和建设，学校
-  的各项办学指标大幅度上升，实现了跨越式发展，整体实力显著增强，为建设世界一流大
-  学奠定了坚实的基础。}
+其中，$N$为客户端的总数，$\mathbf{w}_i$为本地客户端$C_i$上传的模型参数，$\mathbf{w}$为服务端得到的聚合后模型参数，$p_i$为每个客户端本地数据集$D_i$占整体$D$的比例，定义为$p_i=\frac{|D_i|}{|D|}$，故有$\sum_{i = 1}^Np_i = 1$。综合最小化损失函数和聚合过程，我们用以下公式表述联邦学习下的优化问题：
 
-{\ifcsname fangsong\endcsname\fangsong\else[无 \cs{fangsong} 字体。]\fi 交通大学
-  始终把人才培养作为办学的根本任务。一百多年来，学校为国家和社会培养了 20余万各
-  类优秀人才，包括一批杰出的政治家、科学家、社会活动家、实业家、工程技术专家和医
-  学专家，如江泽民、陆定一、丁关根、汪道涵、钱学森、吴文俊、徐光宪、张光斗、黄炎
-  培、邵力子、李叔同、蔡锷、邹韬奋、陈敏章、王振义、陈竺等。在中国科学院、中国工
-  程院院士中，有 200 余位交大校友；在国家 23 位“两弹一星”功臣中，有 6 位交大校
-  友；在 18 位国家最高科学技术奖获得者中，有 3 位来自交大。交大创造了中国近现代
-  发展史上的诸多“第一”：中国最早的内燃机、最早的电机、最早的中文打字机等；新中国
-  第一艘万吨轮、第一艘核潜艇、第一艘气垫船、第一艘水翼艇、自主设计的第一代战斗
-  机、第一枚运载火箭、第一颗人造卫星、第一例心脏二尖瓣分离术、第一例成功移植同种
-  原位肝手术、第一例成功抢救大面积烧伤病人手术等，都凝聚着交大师生和校友的心血智
-  慧。改革开放以来，一批年轻的校友已在世界各地、各行各业崭露头角。}
+\begin{equation}
+  \mathbf{w}^* = \arg\min_{\mathbf{w}}\sum_{i = 1}^{N}p_iF_i(\mathbf{w}, D_i),
+  \label{eq:optimization_problem}
+\end{equation}
 
-{\ifcsname kaishu\endcsname\kaishu\else[无 \cs{kaishu} 字体。]\fi 截至 2011 年 12
-  月 31 日，学校共有 24 个学院 / 直属系（另有继续教育学院、技术学院和国际教育学
-  院），19 个直属单位，12 家附属医院，全日制本科生 16802 人、研究生24495 人（其
-  中博士研究生 5059 人）；有专任教师 2979 名，其中教授 835 名；中国科学院院士 15
-  名，中国工程院院士 20 名，中组部“千人计划”49 名，“长江学者”95 名，国家杰出
-  青年基金获得者 80 名，国家重点基础研究发展计划（973 计划）首席科学家 24名，国
-  家重大科学研究计划首席科学家 9名，国家基金委创新研究群体 6 个，教育部创新团队
-  17 个。
-  
-  学校现有本科专业 68 个，涵盖经济学、法学、文学、理学、工学、农学、医学、管理学
-  和艺术等九个学科门类；拥有国家级教学及人才培养基地 7 个，国家级校外实践教育基
-  地 5个，国家级实验教学示范中心 5 个，上海市实验教学示范中心 4 个；有国家级教学
-  团队 8个，上海市教学团队 15 个；有国家级教学名师 7 人，上海市教学名师 35 人；
-  有国家级精品课程 46 门，上海市精品课程 117 门；有国家级双语示范课程 7
-  门；2001、2005 和2009 年，作为第一完成单位，共获得国家级教学成果 37 项、上海市
-  教学成果 157项。}
+其中，$F_i$为第$i$个客户端的损失函数。
+
+通常情况下，联邦学习框架下的一轮训练过程为：
+
+\begin{enumerate}
+  \item 本地训练：所有客户端根据自身存储的数据计算梯度或参数，并上传本地训练的模型至服务端
+  \item 模型聚合：服务端通过安全聚合方法（secure aggregation），将$N$个客户端的模型聚合为全局模型。
+  \item 参数广播：服务端将聚合后的模型参数广播给所有的客户端
+  \item 模型更新：所有的客户端根据聚合的模型参数将自身的模型进行更新，并测试更新后的模型性能。
+\end{enumerate}
+
+在经过足够轮次的迭代更新和参数交换后，模型在满足一定条件下将收敛到优化问题\ref{eq:optimization_problem}的全局最优\cite{li2020federated}。
+
+值得注意的是，在联邦学习框架的一轮迭代中，客户端除了可以上传本地计算更新后的模型参数，也可以上传本地计算的梯度或模型更新（model update），由服务端聚合各个客户端上传的梯度$\mathbf{g}_i$得到总梯度$\mathbf{g}$来更新服务端模型$\mathbf{w}$\cite{wei2020federated}。
+
+\subsection{联邦学习面对的挑战}
+
+随着对联邦学习的研究逐渐深入，一些关键的挑战也进入了研究者的视野，比如模型上传过程中的隐私信息泄露、云端和本地间的通信成本等问题\cite{kairouz2021advances}。
+
+尽管藉由本地训练，客户端的数据能够避免被直接用于与云端进行交互，而是以本地计算的模型参数、梯度等形式被上传。但是通过分析本地上传的模型参数、梯度等信息，攻击者仍然能够窃取本地数据集中的隐私信息\cite{li2020federated, wei2020federated}。
+
+与此同时，通信问题越来越成为制约联邦学习发展的瓶颈。参与联邦学习的设备数量大、通信轮数多，本地设备的上传、下载带宽（bandwidth）存在物理限制，且传输的模型随着神经网络的发展越来越庞大，这些因素使得联邦学习训练过程中通信时间占比较大、传输效率较低\cite{lin2017deep}。如图（TODO：Deep gradient）所示，随着参与联邦学习的节点数量增加，通信时间占总训练时间的占比显著增加。
+
+
+\section{模型压缩介绍}
+
+为了缓解联邦学习中通信开销巨大的问题，我们将采取模型压缩的策略降低每轮中传输模型参数、梯度的通信量。本小节将对模型压缩相关内容进行简要介绍。
+
+\subsection{模型压缩的背景}
+
+近年来，深度神经网络（Deep Neural Network，DNN）在各个应用领域大放异彩。然而，在许多应用领域的工作，依赖参数规模庞大的神经网络，如表\ref{tab:dnn_param}中给出了常见的神经网络的参数量。这些网络需要大量的CPU、GPU计算资源，且不便于迁移到现今广泛使用的手机等移动设备中。
+
+\begin{table}[!hpt]
+  \caption{常见深度神经网络的参数量}
+  \label{tab:dnn_param}
+  \centering
+  \begin{tabular}{@{}lr@{}} \toprule
+    模型名称  & 参数量 \\ \midrule
+    VGG11\cite{simonyan2014very}  & 28.5M \\
+    MobileNet\cite{howard2017mobilenets}     & 3.3M \\
+    Xception\cite{chollet2017xception}    & 21.0M \\
+    Inceptionv3\cite{szegedy2016rethinking} & 22.3M \\ 
+    Resnet20\cite{he2016deep} & 0.27M\\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+在神经网络的许多应用场景中，都对于在实现同样或者接近性能的情况下尽可能少的模型参数量有着极大的需求。在模型训练阶段，更少的参数量意味着更低的GPU计算资源开销，能够加快计算速度和减少电力能源消耗。在模型推理阶段，更少的参数量意味着更快地完成一次前向推理过程，能显著降低神经网络响应的延时，是自动驾驶等领域主要需求之一。在分布式机器学习场景下，更小的模型意味着更少的存储空间和更快的模型分发效率。
+
+因此，将庞大的深度神经网络进行压缩，使得其能够在更小的资源消耗下进行训练或推理，便显得愈发重要。在本文所主要涉及的联邦学习框架下，客户端和服务端需要进行较多轮的通信，传输模型参数或梯度信息，因而采取合适的模型压缩策略降低传输通信量，将显著提升联邦学习的训练性能。
+
+\subsection{模型压缩的分类}
+
+目前，在模型压缩领域常用的方法可以大致分成四类\cite{cheng2017survey}：剪枝与量化（parameter pruning and quantization）、低秩因子分解（low-rank factorization）、迁移/压缩卷积滤波器（transferred/compact convolutional filters）、知识蒸馏（knowledge distillation）
+
+其中，剪枝通过给组成模型的单元（权重、神经元、卷积核等）按照重要性排序，删除重要性较低的部分；而量化则通过减少模型权重的比特数（the number of bits）来降低模型大小，如将32位浮点数转换成8-bit甚至更小的表示。这一类方法注重于删减模型参数中的冗余信息，适合不同的架构且同时支持从头训练和预训练模型。
+
+低秩因子分解则通过矩阵/张量分解的方式，对神经网络中重要的参数进行估计，降低存储模型参数所需要的维度，进而进行模型压缩。实际应用中，通常采用逐层的方式将卷积层、全连接层进行低秩因子分解，对矩阵采用满秩分解（full-rank decomposition）和奇异值分解（singular value decomposition，SVD）\cite{denton2014exploiting}，对高维张量可采用CP分解（Canonical Polyadic）\cite{lebedev2014speeding}。这一类方法也同样支持从头训练和预训练模型。
+
+迁移/压缩卷积滤波器则是受到\parencite{cohen2016group}提出的CNN上的群等变理论（the equivariant group theory）启发，通过设计具有特殊结构的卷积滤波器，降低每个滤波器所需的参数量，达到压缩CNN结构的深度神经网络的目的。这一类压缩方法的效果和目标任务高度相关，且只能用于从头训练神经网络的情况，无法从现有预训练模型中提取权重。
+
+知识蒸馏\cite{hinton2015distilling}方法，通过将一个在大数据集上训练的复杂网络（通常称为教师模型，teacher model）作为监督信号，训练一个更小、更轻量级的模型（也称为学生模型，student model）,使学生模型尽可能接近教师模型的精度和性能，以此来达到同样性能下模型参数更少的目的。这一类方法的效果也会受到具体下游任务精度的影响，且只能用于从头训练神经网络。
+
+在这四类常见的模型压缩方法之外，还有着许多研究进行着类似的尝试\cite{hinton2015distilling,almahairi2016dynamic, shazeer2017outrageously}。诸多的模型压缩方法均有着各自的压缩特点和各自的适用范围，需要结合具体的任务场景选择合适的方法且对其具体使用进行调整。
+
+
+\section{差分隐私介绍}
+
+为了在联邦学习框架下保护客户端的数据隐私，我们将采用差分隐私方法避免客户端上传的模型参数、梯度中的隐私泄露。本小节将介绍联邦学习下隐私攻击模型和差分隐私相关的知识。
+
+\subsection{隐私攻击模型}
+
+在联邦学习框架中，虽然第$i$ 个客户端的数据集$D_i$始终保存在客户端本地，但其本地训练得到的参数$\mathbf{w}_i$或梯度$\mathbf{g}_i$需要上传到云端，这些上传的信息中极有可能会揭示本地的隐私信息。比如，\parencite{fredrikson2015model}提出的模型反转攻击（Model inversion attack）能够从一个采用了深度神经网络的面部识别系统的权重参数中恢复出人脸图像，因而在联邦学习框架下，客户端上传的模型参数易受到攻击。与此同时，在参数广播阶段，服务端向所有客户端广播的聚合后模型参数$\mathbf{w}$同样也可能被用于分析参与的客户端隐私信息。
+
+考虑到联邦学习中上述的隐私风险，本文所讨论的联邦学习隐私攻击模型为：假定各个客户端和服务端均为诚实的（honest），但存在第三方攻击者，能够窃听各个客户端上传的模型参数、梯度以及服务端广播的模型参数。
+
+\subsection{差分隐私}
+
+应对上述隐私攻击模型的常用方法为在本地上传的信息中加入人造噪声，而如何加入噪声、加入多少噪声变成隐私保护的一大核心问题。对于这一问题的典型方法方法之一便是差分隐私（Differential Privacy）。
+
+差分隐私中的$(\epsilon, \delta)$-DP\cite{dwork2014algorithmic}为分布式数据处理系统提供了强有力的隐私保证。$(\epsilon, \delta)$-DP中，$\epsilon > 0$ 表示数据库中相邻数据集$D_i,D_i'$所有输出的可区分边界，即隐私预算；$\delta$ 表示在加入某种隐私保护机制后，相邻数据集$D_i$和$D_i'$分布不在$e^\epsilon$范围内的松弛项，即差分隐私在一定程度上的不满足。对于任意给定的$\delta$，有着更大的隐私预算$\epsilon$的隐私保护机制会导致更大的相邻数据集输出差异，也更容易发生隐私泄露。差分隐私形式化的表述为：
+
+\begin{definition}[ $(\epsilon, \delta)$-DP]
+  定义在$X\rightarrow R$上的随机化机制$M: X \rightarrow R$ 要满足$(\epsilon, \delta)$-DP，仅当对$R$的所有可测集（measurable set）$S\subseteq R$ 和$X$的任意相邻子集$D_i, D_i'\in X$，有：
+
+  \begin{equation}
+    \text{Pr}\left[ M(D_i)\in S\right] 
+    \le e^\epsilon \text{Pr}\left[ M(D_i')\in S\right] + \delta
+  \end{equation}
+\end{definition}
+
+对于数值数据，定义在\parencite{dwork2014algorithmic}中的高斯机制（Gaussian mechanism）可以被用于保证$(\epsilon, \delta)$-DP。我们在这里给出以下采用加入高斯噪声实现的差分隐私机制。
+
+为了使我们加入的高斯噪声$n\sim N(0, \sigma^2)$满足$(\epsilon, \delta)$-DP，我们将在$\epsilon \in [0, 1]$时选择噪声水平为$\sigma \ge c \Delta s / \epsilon$，其中常数$c \ge \sqrt{2ln(1.25/\delta)}$。在前述式子中，$n$表示在数据集的一个数据样本中加入的加法噪声采样值；$\Delta s$表示一个实数值域函数$s$的敏感度，定义为：$\Delta s = \max_{D_i, D_i'} \Vert s(D_i) - s(D_i')\Vert $。
+
+在上述差分隐私机制下，不同的噪声水平会极大影响对客户端的隐私保护以及模型收敛能力。因此，在应用差分隐私时，需要结合实际场景选择合适的噪声水平。
+
+\subsection{联邦学习框架下的全局差分隐私}
+
+结合联邦学习框架和上述噪声机制，为了使得客户端上传的内容差分隐私，我们将在客户端上传的模型参数或梯度中加入高斯噪声。这里我们给出具体的加噪机制。
+
+在客户端使用权重/梯度裁切（clipping）技术下，我们可以确保
+
+\begin{equation}
+  \Vert\mathbf{w}_i\Vert \le C,
+\end{equation}
+
+其中，$\mathbf{w}_i$表示第$i$个客户端上传的带有噪声扰动的参数，$C$则为限制$\mathbf{w}_i$数值大小的裁切阈值。假设本地训练的批量大小（batch size）和本地训练样本数相同，我们可以如下定义本地训练过程：
+
+\begin{equation}
+  \begin{aligned}
+  s^{D_i} &\triangleq \mathbf{w}_i = \arg \min_{\mathbf{w}} F(\mathbf{w}, D_i) \\
+      &=  \frac{1}{|D_i|}\sum_{j = 1}^{|D_i|} \arg \min_{\mathbf{w}} F(\mathbf{w}, D_{i,j}),
+  \end{aligned}
+\end{equation}
+
+其中，$D_i$是第$i$个客户端的本地数据集，$D_{i, j}$是$D_i$的第$j$个样本。因此，$s^{D_i}$的敏感度可表示为：
+
+\begin{equation}
+  \begin{aligned}
+  \Delta s^{D_i} &= \max_{D_i, D_i'} \Vert S^{D_i} - s^{D_i'}\Vert\\
+  &= \max_{D_i, D_i'} \left\Vert \frac{1}{|D_i|}\sum_{j = 1}^{|D_i|} \arg \min_{\mathbf{w}} F(\mathbf{w}, D_{i,j}) - \frac{1}{|D_i'|}\sum_{j = 1}^{|D_i'|} \arg \min_{\mathbf{w}} F(\mathbf{w}, D_{i,j})'\right\Vert \\
+  &= \frac{2C} {|D_i|}, 
+  \end{aligned}
+\end{equation}
+
+其中，$D_i'$是和$D_i$大小相同、只有一个样本不同的相邻集（adjacent dataset），$D_{i,j}'$是$D_i'$的第$j$个样本。从上述结果可知，所有客户端上传本地训练的模型参数到服务端的全局总和敏感度为：
+
+\begin{equation}
+  \Delta s \triangleq \max\left\{\Delta s^{D_i}\right\}, \forall i.
+\end{equation}
+
+为了得到较小的全局敏感度，理想情况下每个客户端应提供足够的数据集用于本地训练。因此，我们用$m$表示各个客户端本地数据集的最小大小。从而，我们得到：
+\begin{equation}
+  \Delta s = \frac{2C}{m}.
+\end{equation}
+
+为了在一轮客户端上传的模型参数、梯度上保证$(\epsilon, \delta)$-DP，我们设定加入的噪声水平为:
+\begin{equation}
+  \sigma = \frac{c\Delta s}{\epsilon}
+\end{equation}
+
+若总共需要对本地数据集进行$L$次完整访问或总共需要经过$L$轮本地训练，即客户端需要上传$L$次本地训练得到的模型参数、梯度至服务端，则由于高斯噪声的线性性，我们加入的噪声水平为：
+\begin{equation}
+  \sigma = \frac{cL\Delta s}{\epsilon}
+\end{equation}
+
+\section{研究贡献总结}
+
+\section{本章小结}
