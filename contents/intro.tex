@@ -29,7 +29,7 @@
 
 通常情况下，联邦学习框架下的一轮训练过程为：
 
-\begin{enumerate}
+\begin{enumerate}[label=\textbf{步骤}\ \arabic*, itemindent=1.5em]
   \item 本地训练：所有客户端根据自身存储的数据计算梯度或参数，并上传本地训练的模型至服务端
   \item 模型聚合：服务端通过安全聚合方法（secure aggregation），将$N$个客户端的模型聚合为全局模型。
   \item 参数广播：服务端将聚合后的模型参数广播给所有的客户端
